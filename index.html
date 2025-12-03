@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reminders</title>
+<style>
+:root{--bg1:#0ea5e9;--bg2:#8b5cf6;--card:#ffffff;--text:#0f172a;--muted:#64748b;--accent:#22c55e;--danger:#ef4444}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;display:grid;place-items:center;background:linear-gradient(135deg,var(--bg1),var(--bg2));background-attachment:fixed;padding:24px}
+.app{width:100%;max-width:720px;background:radial-gradient(1200px 600px at 0% 0%, rgba(255,255,255,0.65), rgba(255,255,255,0.75)), var(--card);border-radius:18px;box-shadow:0 10px 30px rgba(2,6,23,0.25);padding:24px}
+h1{font-size:24px;margin:0 0 16px;letter-spacing:0.2px;color:transparent;background:linear-gradient(90deg,#0ea5e9,#22c55e,#8b5cf6);-webkit-background-clip:text;background-clip:text}
+.form{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+input{font-size:16px;padding:10px 12px;border-radius:12px;border:1px solid rgba(2,6,23,0.1);background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(2,6,23,0.06)}
+input:focus{outline:none;border-color:#0ea5e9;box-shadow:0 0 0 3px rgba(14,165,233,0.25)}
+input[type=text]{flex:1 1 280px}
+input[type=datetime-local]{flex:1 1 220px}
+button{cursor:pointer;border:0;border-radius:12px;font-size:16px;padding:10px 16px}
+#add{background:linear-gradient(90deg,#22c55e,#0ea5e9);color:#fff;box-shadow:0 8px 20px rgba(34,197,94,0.35);transition:transform .06s ease, filter .2s}
+#add:hover{filter:brightness(1.05)}
+#add:active{transform:translateY(1px)}
+ul{list-style:none;padding:0;margin:0}
+li{display:flex;align-items:center;justify-content:space-between;background:#ffffffcc;border:1px solid rgba(2,6,23,0.08);backdrop-filter:saturate(140%) blur(4px);border-radius:14px;padding:12px 14px;margin-bottom:10px;box-shadow:0 4px 14px rgba(2,6,23,0.12)}
+.left{display:flex;align-items:center;gap:10px;color:var(--text)}
+.badge{display:inline-block;background:linear-gradient(90deg,#0ea5e9,#8b5cf6);color:#fff;font-size:12px;border-radius:999px;padding:4px 10px}
+.delete{background:transparent;color:var(--danger);border:1px solid rgba(239,68,68,0.45)}
+.delete:hover{background:rgba(239,68,68,0.08)}
+.time{color:var(--muted);font-size:14px}
+.empty{color:#ffffff;opacity:0.85;text-align:center;padding:12px}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>Reminders</h1>
+<div class="form">
+<input id="text" type="text" placeholder="Reminder"/>
+<input id="when" type="datetime-local"/>
+<button id="add">Add</button>
+</div>
+<ul id="list"></ul>
+</div>
+<script>
+const key='reminders';
+let items=JSON.parse(localStorage.getItem(key)||'[]');
+const text=document.getElementById('text');
+const when=document.getElementById('when');
+const add=document.getElementById('add');
+const list=document.getElementById('list');
+function save(){localStorage.setItem(key,JSON.stringify(items))}
+function fmt(dt){return new Date(dt).toLocaleString()}
+function render(){
+list.innerHTML='';
+if(items.length===0){const e=document.createElement('div');e.className='empty';e.textContent='No reminders';list.appendChild(e);return}
+items.sort((a,b)=>a.at-b.at);
+for(const r of items){
+const li=document.createElement('li');
+const left=document.createElement('div');
+left.className='left';
+const title=document.createElement('div');
+title.textContent=r.text;
+const badge=document.createElement('span');
+badge.className='badge';
+badge.textContent='Due';
+const time=document.createElement('span');
+time.className='time';
+time.textContent=fmt(r.at);
+left.appendChild(title);
+left.appendChild(badge);
+left.appendChild(time);
+const remove=document.createElement('button');
+remove.className='delete';
+remove.textContent='Delete';
+remove.onclick=()=>{items=items.filter(x=>x.id!==r.id);save();render()};
+li.appendChild(left);
+li.appendChild(remove);
+list.appendChild(li);
+}
+}
+function notify(msg){
+if('Notification' in window){
+if(Notification.permission==='granted'){new Notification(msg)}else if(Notification.permission!=='denied'){Notification.requestPermission().then(p=>{if(p==='granted')new Notification(msg);else alert(msg)})}else{alert(msg)}
+}else{alert(msg)}
+}
+add.onclick=()=>{
+const t=text.value.trim();
+const w=when.value;
+if(!t||!w)return;
+const at=new Date(w).getTime();
+if(isNaN(at)||at<=Date.now())return;
+const id=crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random();
+items.push({id, text:t, at});
+save();
+text.value='';
+when.value='';
+render();
+};
+function tick(){
+const now=Date.now();
+const due=items.filter(r=>r.at<=now);
+if(due.length){
+for(const r of due){notify(r.text)}
+items=items.filter(r=>r.at>now);
+save();
+render();
+}
+}
+render();
+if('Notification' in window && Notification.permission!=='granted' && Notification.permission!=='denied'){Notification.requestPermission()}
+setInterval(tick,1000);
+</script>
+</body>
+</html>
+
